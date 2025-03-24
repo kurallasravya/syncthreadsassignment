@@ -6,22 +6,35 @@ import "leaflet/dist/leaflet.css";
 const MapView = () => {
     const { id } = useParams();
     const [mapData, setMapData] = useState(null);
-    const token = localStorage.getItem("token");
+    const [error, setError] = useState(null);
+    const token = sessionStorage.getItem("token");
 
     useEffect(() => {
+        if (!token) return;
+
         fetch(`http://localhost:5000/api/map/${id}`, {
             method: "GET",
             headers: { "Authorization": `Bearer ${token}` },
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error("Failed to load map data");
+            return response.json();
+        })
         .then(data => setMapData(data))
-        .catch(error => console.error("Error:", error));
-    }, [id]);
+        .catch(error => setError(error.message));
+    }, [id, token]);
+
+    // Handle missing token
+    if (!token) {
+        return <h2>Please log in to view the map.</h2>;
+    }
 
     return (
         <div>
             <h1>{mapData ? mapData.name : "Loading..."}</h1>
-            {mapData ? (
+            {error ? (
+                <p style={{ color: "red" }}>{error}</p>
+            ) : mapData ? (
                 <MapContainer center={mapData.center} zoom={mapData.zoom} style={{ height: "500px", width: "100%" }}>
                     <TileLayer
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
